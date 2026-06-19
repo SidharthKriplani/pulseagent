@@ -1,41 +1,88 @@
 # PulseAgent
 
-An agentic AI system built on a production-grade RAG stack. PulseAgent wraps hybrid BM25+dense retrieval and NLI citation verification inside a LangGraph StateGraph, adding multi-step planning, tool use, and self-reflection on top of the retrieval layer.
+A multi-agent RAG system built on LangGraph. Three specialist sub-agents — RetrievalAgent, VerifierAgent, SynthesisAgent — orchestrated by a SupervisorAgent that decomposes queries and fans out retrieval in parallel. Retrieval and NLI layers exposed as MCP tools. Containerized FastAPI service deployable on GCP Cloud Run.
 
-Built to demonstrate production AI engineering skills for Staff/Senior AI Engineer roles — specifically: agentic orchestration, tool use patterns, citation-grounded generation, and evaluation rigor.
+Built to demonstrate production AI engineering skills: multi-agent orchestration, tool use, citation-grounded generation, NLI evaluation, and cloud deployment.
 
 ---
 
-## What it does
-
-A user query enters the graph and flows through five nodes before an answer is returned:
+## Architecture
 
 ```
 User Query
     │
     ▼
-[planner]        Decomposes query into search intent + up to 3 sub-queries (LM Studio)
-    │
-    ▼
-[retriever]      Hybrid RRF retrieval: BM25 + dense vector (BAAI/bge-small-en-v1.5, 384-dim)
-                 over 6,221 Wix help center articles. Deduplicates across sub-queries.
-    │
-    ▼
-[nli_verifier]   NLI citation check: cross-encoder/nli-deberta-v3-small
-                 Converts query → declarative claim. Strict policy: confidence ≥ 0.85, verdict == SUPPORTS.
-    │
-    ▼
-[generator]      Grounded answer using verified chunks (falls back to retrieved if NLI abstains).
-                 Runs via LM Studio (qwen2.5-7b-instruct, local).
-    │
-    ▼
-[reflector]      Self-critique: PASS → return answer. RETRY → back to generator (max 2 retries).
-    │
-    ▼
-Route: ANSWER_WITH_CITATION or ABSTAIN
+┌─────────────────────────────────────────────────────────────────┐
+│  SupervisorAgent  (LangGraph StateGraph)                        │
+│                                                                 │
+│  [planner_node]  ──  LLM decomposes query → sub-queries        │
+│       │                                                         │
+│       │  Send() fan-out (parallel)                              │
+│       ├──────────────────────────────────┐                      │
+│       ▼                                  ▼                      │
+│  ┌──────────────┐               ┌──────────────┐               │
+│  │RetrievalAgent│               │RetrievalAgent│  (×N subgraph)│
+│  │  sub-graph   │               │  sub-graph   │               │
+│  │  BM25+dense  │               │  BM25+dense  │               │
+│  │  RRF fusion  │               │  RRF fusion  │               │
+│  └──────┬───────┘               └──────┬───────┘               │
+│         │  chunks                      │  chunks                │
+│         └──────────────┬───────────────┘                       │
+│                        │  Annotated reducer accumulates         │
+│                        ▼                                        │
+│              [aggregate_node]  dedup + rank                     │
+│                        │                                        │
+│                        ▼                                        │
+│  ┌─────────────────────────────┐                               │
+│  │     VerifierAgent sub-graph │                               │
+│  │  NLI: cross-encoder/nli-    │                               │
+│  │  deberta-v3-small ≥0.85     │                               │
+│  │  ANSWER_WITH_CITATION /     │                               │
+│  │  ABSTAIN per passage        │                               │
+│  └──────────────┬──────────────┘                               │
+│                 │  verified_chunks + decision                   │
+│                 ▼                                               │
+│  ┌─────────────────────────────┐                               │
+│  │    SynthesisAgent sub-graph │                               │
+│  │  [generator] grounded answer│                               │
+│  │  [reflector] self-critique  │                               │
+│  │  PASS → END  RETRY → gen   │                               │
+│  └──────────────┬──────────────┘                               │
+└─────────────────┼───────────────────────────────────────────────┘
+                  ▼
+         Route: ANSWER | ABSTAIN
 ```
 
-The agent abstains rather than hallucinating when it cannot produce a citation-verified answer. This is intentional — precision over recall.
+Each specialist (RetrievalAgent, VerifierAgent, SynthesisAgent) is a separately compiled `StateGraph` subgraph. The Supervisor uses LangGraph's `Send()` API to fan sub-queries out to parallel RetrievalAgent instances; results accumulate via an `Annotated[List[dict], operator.add]` reducer.
+
+---
+
+## MCP Interface
+
+Retrieval and NLI are exposed as MCP tools via `fastmcp`:
+
+```
+retrieve_passages(query: str)              → list[dict]
+verify_citation(claim: str, passage: str)  → dict{verdict, confidence, passes}
+```
+
+Run the MCP server:
+```bash
+python3 src/mcp_server/server.py           # stdio (Claude Desktop)
+python3 src/mcp_server/server.py --sse     # SSE transport
+```
+
+Claude Desktop config:
+```json
+{
+  "mcpServers": {
+    "pulseagent": {
+      "command": "python3",
+      "args": ["/path/to/pulseagent/src/mcp_server/server.py"]
+    }
+  }
+}
+```
 
 ---
 
@@ -49,16 +96,14 @@ The agent abstains rather than hallucinating when it cannot produce a citation-v
 | Error rate | 0.0% |
 | Mean retrieval+NLI latency | 0.218s |
 | P95 retrieval+NLI latency | 0.247s |
-| Total wall time (200 queries, no LLM) | 43.8s |
 
-Eval runs retriever + NLI only (no LM Studio required). Run with:
+The abstain rate is a feature: the agent refuses to answer when it cannot produce a citation-verified response, rather than hallucinating.
 
+Run eval (no LM Studio required):
 ```bash
 python3 src/eval/eval_runner.py          # 200 queries
-python3 src/eval/eval_runner.py --n 50   # smaller sample
+python3 src/eval/eval_runner.py --n 50   # quick sample
 ```
-
-Output → `outputs/evidence/<query_id>.json` + `outputs/eval_summary.json`
 
 ---
 
@@ -66,15 +111,17 @@ Output → `outputs/evidence/<query_id>.json` + `outputs/eval_summary.json`
 
 | Layer | Technology |
 |-------|-----------|
-| Agent orchestration | LangGraph StateGraph (typed `AgentState`) |
-| Tool interface | LangChain `@tool` decorator |
-| LLM | LM Studio · `qwen2.5-7b-instruct` · OpenAI-compatible API |
-| Dense retrieval | fastembed `BAAI/bge-small-en-v1.5` · 384-dim · Qdrant in-memory |
+| Agent orchestration | LangGraph StateGraph + Send() fan-out |
+| Specialist sub-agents | 3 compiled subgraphs (Retrieval, Verifier, Synthesis) |
+| MCP tools | fastmcp (retrieve_passages, verify_citation) |
+| LLM | Groq (cloud) / LM Studio (local) · qwen2.5-7b or llama-3.3-70b |
+| Dense retrieval | fastembed BAAI/bge-small-en-v1.5 · 384-dim · Qdrant in-memory |
 | Sparse retrieval | BM25Okapi (rank_bm25) |
 | Fusion | Reciprocal Rank Fusion (RRF, k=60) |
-| NLI verification | `cross-encoder/nli-deberta-v3-small` (HuggingFace) |
+| NLI verification | cross-encoder/nli-deberta-v3-small (HuggingFace) |
+| API | FastAPI + uvicorn |
+| Deployment | Docker + GCP Cloud Run |
 | Corpus | Wix/WixQA · 6,221 articles · MIT license |
-| Cache | 3-part: `chunks.pkl` + `bm25.pkl` + `vectors.npy` (cold start ~15s, no re-embedding) |
 
 ---
 
@@ -82,66 +129,91 @@ Output → `outputs/evidence/<query_id>.json` + `outputs/eval_summary.json`
 
 ```
 pulseagent/
-├── main.py                    Entry point — runs the agent graph interactively
-├── config.py                  LM Studio URL, thresholds, top-K params
+├── main.py                     Entry point (--legacy flag uses original single-agent)
+├── api.py                      FastAPI service (POST /query, GET /health)
+├── config.py                   Env-var driven LLM config (local/Groq/any OpenAI-compat)
+├── Dockerfile                  Container for GCP Cloud Run
+├── requirements.txt
 ├── src/
-│   ├── agent/
-│   │   ├── graph.py           LangGraph StateGraph definition
-│   │   ├── nodes.py           5 node functions: planner, retriever, nli_verifier, generator, reflector
-│   │   └── state.py           AgentState TypedDict
+│   ├── agents/                 Multi-agent system
+│   │   ├── state.py            SupervisorState, RetrievalState, VerifierState, SynthesisState
+│   │   ├── supervisor.py       SupervisorAgent: planner + fan-out + aggregate
+│   │   ├── retrieval_agent.py  RetrievalAgent subgraph (BM25+dense+RRF)
+│   │   ├── verifier_agent.py   VerifierAgent subgraph (NLI)
+│   │   └── synthesis_agent.py  SynthesisAgent subgraph (generator+reflector)
+│   ├── agent/                  Original single-agent (preserved, used by --legacy)
+│   ├── mcp_server/
+│   │   └── server.py           MCP tool server (stdio + SSE)
 │   ├── tools/
-│   │   ├── retriever_tool.py  @tool: hybrid RRF retrieval (3-part cache)
-│   │   └── nli_tool.py        @tool: NLI citation verification
-│   ├── retrieval/             Bundled retrieval layer
-│   │   ├── corpus.py          CorpusChunk dataclass
-│   │   └── indexer.py         RetrievalIndex: BM25 + Qdrant + hybrid_search()
-│   ├── citation/              Bundled NLI layer
-│   │   └── entailment.py      NLICitationChecker (cross-encoder/nli-deberta-v3-small)
-│   ├── corpus/                Bundled corpus adapter
-│   │   └── wixqa_adapter.py   Loads WixQA from HuggingFace → CorpusChunk list
+│   │   ├── retriever_tool.py   @tool: hybrid RRF (3-part persistent cache)
+│   │   └── nli_tool.py         @tool: NLI citation verification
+│   ├── retrieval/              Bundled retrieval layer (corpus.py, indexer.py)
+│   ├── citation/               Bundled NLI layer (entailment.py)
+│   ├── corpus/                 Bundled corpus adapter (wixqa_adapter.py)
 │   └── eval/
-│       └── eval_runner.py     200-query evaluation harness (no LLM required)
-└── .cache/                    Persistent index (created on first run, never re-embedded)
-    ├── chunks.pkl
-    ├── bm25.pkl
-    └── vectors.npy
+│       └── eval_runner.py      200-query evaluation harness
+└── .cache/                     Persistent index (gitignored — built on first run)
 ```
 
 ---
 
 ## Setup
 
-**Requirements:**
-- Python 3.10+
-- [LM Studio](https://lmstudio.ai/) with `qwen2.5-7b-instruct` loaded (for planner/generator/reflector nodes)
-- LM Studio server running on `http://localhost:1234`
+**Requirements:** Python 3.10+, LM Studio (local) or Groq API key (cloud)
 
 ```bash
-# Install dependencies
-pip install langchain langchain-openai langgraph \
-            fastembed qdrant-client rank-bm25 \
-            sentence-transformers datasets numpy
+pip install -r requirements.txt
 
-# Run the agent
-python3 main.py
+# Run multi-agent supervisor (local, LM Studio at localhost:1234)
+python3 main.py "how do I add a blog?"
+
+# Run with Groq (no local LLM needed)
+export LLM_BASE_URL=https://api.groq.com/openai/v1
+export LLM_API_KEY=<your_groq_key>
+export LLM_MODEL=llama-3.3-70b-versatile
+python3 main.py "how do I add a blog?"
+
+# Run FastAPI server
+uvicorn api:app --reload --port 8000
+# POST http://localhost:8000/query  {"question": "how do I add a blog?"}
 ```
 
-**First run:** embeds 6,221 articles (~5-8 min one-time). Cache is saved to `.cache/` — all subsequent runs load in ~15s.
+**First run:** embeds 6,221 articles (~5-8 min, one-time). Saved to `.cache/`. All subsequent runs load in ~15s.
 
-**Eval only (no LM Studio needed):**
+---
+
+## Cloud deployment (GCP Cloud Run)
+
 ```bash
-python3 src/eval/eval_runner.py
+# Build and deploy
+gcloud run deploy pulseagent \
+  --source . \
+  --region us-central1 \
+  --set-env-vars LLM_BASE_URL=https://api.groq.com/openai/v1 \
+  --set-env-vars LLM_MODEL=llama-3.3-70b-versatile \
+  --set-secrets  LLM_API_KEY=groq-api-key:latest \
+  --memory 4Gi \
+  --timeout 300 \
+  --allow-unauthenticated
 ```
+
+**Note on cold start:** the corpus cache (`.cache/`) is not baked into the image (it's gitignored). First request after a cold start triggers the embedding step (~5-8 min). The `/health` endpoint reports `cache: building` vs `cache: ready`. For production, mount the cache from Cloud Storage.
 
 ---
 
 ## Key engineering decisions
 
+**Why LangGraph Send() for fan-out?**
+`Send()` dispatches each sub-query to a separate RetrievalAgent instance that runs as an independent graph execution. Results accumulate via `Annotated[List[dict], operator.add]` in SupervisorState. This is the canonical LangGraph multi-agent parallel pattern — not cosmetic parallelism.
+
+**Why compile each specialist as a separate StateGraph?**
+Each specialist has its own typed state schema and is independently testable. The Supervisor doesn't need to know the internals of how retrieval or NLI work — it just invokes the compiled subgraph. This is the correct abstraction for multi-agent systems.
+
+**Why Groq for cloud deployment?**
+Groq's API is OpenAI-compatible (same format as LM Studio). Switching from local to cloud is two env vars. Free tier supports 14,400 requests/day — sufficient for a portfolio demo. No Kubernetes needed: Cloud Run abstracts container orchestration at this scale.
+
 **Why 3-part cache instead of pickling the full index?**
-The `RetrievalIndex` holds a fastembed `TextEmbedding` object backed by an ONNX `InferenceSession`, which is not picklable. The solution: serialize chunks as plain dicts, BM25 separately, vectors as numpy. Rebuild Qdrant in-memory from saved vectors on load. Cold start from cache: ~15s vs ~8 min fresh.
+The `RetrievalIndex` holds a fastembed ONNX `InferenceSession`, which is not picklable. Solution: serialize chunks as plain dicts, BM25 separately, vectors as numpy. Rebuild Qdrant in-memory from saved vectors on load. Cold start from cache: ~15s vs ~8 min fresh.
 
-**Why does the NLI verifier convert questions to declarative claims?**
-NLI entailment models are trained on premise→hypothesis pairs where the hypothesis is a declarative statement. A question like "How do I add a payment method?" will almost never entail any chunk because questions don't state facts. Converting to `"This article provides information about: How do I add a payment method"` gives the model a falsifiable hypothesis it can actually verify.
-
-**Why abstain at 44% rather than lower the threshold?**
-At 0.85 NLI confidence the system answers only when it has strong citation support. Lowering the threshold increases answer rate but allows unverified chunks through — trading precision for recall. For a help center assistant, precision is the right call: a non-answer is better than a wrong answer.
+**Why NLI claim conversion?**
+NLI entailment models expect declarative hypothesis-premise pairs. Questions always fail entailment. Converting "How do I add a blog?" → "This article provides information about: How do I add a blog" gives the cross-encoder a falsifiable statement it can actually verify.
