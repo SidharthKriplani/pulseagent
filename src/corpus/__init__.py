@@ -1,0 +1,1 @@
+# PulseKnowledge corpus adapters

@@ -1,0 +1,17 @@
+{
+  "eval_date": "2026-06-19T06:44:04.910855+00:00",
+  "total_queries": 200,
+  "route_distribution": {
+    "ANSWER_WITH_CITATION": 112,
+    "ABSTAIN": 88,
+    "ERROR": 0
+  },
+  "answer_rate": 0.56,
+  "abstain_rate": 0.44,
+  "error_rate": 0.0,
+  "mean_citation_precision": 0.26,
+  "mean_latency_s": 0.218,
+  "p50_latency_s": 0.146,
+  "p95_latency_s": 0.247,
+  "total_wall_time_s": 43.8
+}
