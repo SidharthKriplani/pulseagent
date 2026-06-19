@@ -16,15 +16,8 @@ COPY . .
 
 # Pre-download ML models at build time so container starts fast
 # NLI model (~90MB) and embedding model (~130MB) baked into image
-RUN python3 -c "
-from sentence_transformers import CrossEncoder
-CrossEncoder('cross-encoder/nli-deberta-v3-small')
-print('NLI model downloaded')
-" && python3 -c "
-from fastembed import TextEmbedding
-list(TextEmbedding('BAAI/bge-small-en-v1.5').embed(['warmup']))
-print('Embedding model downloaded')
-"
+RUN python3 -c "from sentence_transformers import CrossEncoder; CrossEncoder('cross-encoder/nli-deberta-v3-small'); print('NLI model downloaded')" && \
+    python3 -c "from fastembed import TextEmbedding; list(TextEmbedding('BAAI/bge-small-en-v1.5').embed(['warmup'])); print('Embedding model downloaded')"
 
 # Expose Cloud Run's expected port
 EXPOSE 8080
