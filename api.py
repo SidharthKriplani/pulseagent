@@ -86,6 +86,16 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 class QueryRequest(BaseModel):
     question: str
 
+    model_config = {"str_max_length": 2000}
+
+    from pydantic import field_validator
+    @field_validator("question")
+    @classmethod
+    def question_length(cls, v):
+        if len(v) > 2000:
+            raise ValueError("question exceeds 2000 character limit")
+        return v
+
 class QueryResponse(BaseModel):
     answer:      str
     citations:   list[str]
@@ -112,10 +122,8 @@ async def startup_event():
 
 @app.get("/health")
 def health():
-    cache_dir = PA_ROOT / ".cache"
-    cache_ok  = all((cache_dir / f).exists()
-                    for f in ["chunks.pkl", "bm25.pkl", "vectors.npy"])
-    return {"status": "ok", "cache": "ready" if cache_ok else "building"}
+    from src.tools.retriever_tool import _index
+    return {"status": "ok", "cache": "ready" if _index is not None else "building"}
 
 
 @app.post("/query", response_model=QueryResponse)

@@ -50,9 +50,17 @@ def _get_llm(json_mode: bool = False):
     return llm
 
 
+from tenacity import wait_fixed, wait_chain
+
+def _is_rate_limit(exc: BaseException) -> bool:
+    return "429" in str(exc) or "rate_limit" in str(exc).lower()
+
 @retry(
     stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
+    wait=wait_chain(
+        wait_fixed(30),   # first retry: wait 30s (Groq rate limit window)
+        wait_exponential(multiplier=2, min=30, max=60),
+    ),
     retry=retry_if_exception_type(Exception),
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True,

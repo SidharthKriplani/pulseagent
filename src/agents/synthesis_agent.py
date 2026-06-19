@@ -40,9 +40,14 @@ def _get_llm():
     )
 
 
+from tenacity import wait_fixed, wait_chain
+
 @retry(
     stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
+    wait=wait_chain(
+        wait_fixed(30),
+        wait_exponential(multiplier=2, min=30, max=60),
+    ),
     retry=retry_if_exception_type(Exception),
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True,
