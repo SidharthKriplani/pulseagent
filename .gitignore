@@ -14,8 +14,9 @@ build/
 venv/
 env/
 
-# Cache (large binary files — rebuild with: python3 main.py or eval_runner.py)
-.cache/
+# Cache — committed so Cloud Run loads in ~15s instead of rebuilding from scratch
+# retrieval_index.pkl is excluded (old monolithic format, replaced by 3-part cache)
+.cache/retrieval_index.pkl
 
 # Eval evidence (per-query JSONs, regenerate with eval_runner.py)
 # outputs/evidence/ is gitignored; outputs/eval_summary.json IS committed (proof of eval)
