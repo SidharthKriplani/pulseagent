@@ -61,14 +61,19 @@ class QueryResponse(BaseModel):
 @app.on_event("startup")
 async def startup_event():
     """
-    Pre-warm the retrieval index on startup.
-    First run builds 3-part cache (~5-8 min, one-time).
-    Subsequent starts load from cache (~15s).
+    Warm the retrieval index in a background thread so uvicorn binds to
+    port 8080 immediately (Cloud Run startup timeout ~60s).
+    First run builds 3-part cache (~5-8 min). Subsequent starts: ~15s.
+    Requests received before the index is ready will block inside the tool
+    until it finishes — safe because the tool uses a module-level lock.
     """
-    print("[api] Pre-warming retrieval index on startup...")
-    from src.tools.retriever_tool import _get_index
-    _get_index()
-    print("[api] Index ready.")
+    import threading
+    def _warm():
+        print("[api] Warming retrieval index in background...")
+        from src.tools.retriever_tool import _get_index
+        _get_index()
+        print("[api] Index ready.")
+    threading.Thread(target=_warm, daemon=True).start()
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────

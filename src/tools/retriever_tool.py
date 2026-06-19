@@ -18,6 +18,7 @@ BM25_CACHE    = CACHE_DIR / "bm25.pkl"
 VECTORS_CACHE = CACHE_DIR / "vectors.npy"
 
 _index = None
+_index_lock = __import__("threading").Lock()
 
 
 def _load_from_cache():
@@ -161,22 +162,23 @@ def _build_fresh():
 
 def _get_index():
     global _index
-    if _index is not None:
+    if _index is not None:          # fast path — no lock needed once set
         return _index
-
-    cache_ok = (CHUNKS_CACHE.exists() and BM25_CACHE.exists() and VECTORS_CACHE.exists())
-    if cache_ok:
-        print("[retriever] Cache found — loading without re-embedding...")
-        try:
-            _index = _load_from_cache()
-            print("[retriever] Index ready (from cache).")
+    with _index_lock:               # only one thread builds at a time
+        if _index is not None:      # re-check inside lock (another thread may have finished)
             return _index
-        except Exception as e:
-            print(f"[retriever] Cache load failed ({e}) — rebuilding from scratch...")
-
-    _index = _build_fresh()
-    print("[retriever] Index ready.")
-    return _index
+        cache_ok = (CHUNKS_CACHE.exists() and BM25_CACHE.exists() and VECTORS_CACHE.exists())
+        if cache_ok:
+            print("[retriever] Cache found — loading without re-embedding...")
+            try:
+                _index = _load_from_cache()
+                print("[retriever] Index ready (from cache).")
+                return _index
+            except Exception as e:
+                print(f"[retriever] Cache load failed ({e}) — rebuilding from scratch...")
+        _index = _build_fresh()
+        print("[retriever] Index ready.")
+        return _index
 
 
 @tool
