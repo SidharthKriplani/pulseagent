@@ -1,0 +1,182 @@
+<svg viewBox="0 0 1300 640" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1300" height="640" fill="url(#bg)" rx="14"/>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- HEADER BAR  y=16..151 -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <rect x="16" y="16" width="1268" height="135" rx="10" fill="#14532d" stroke="#16a34a" stroke-width="1.5" filter="url(#shadow)"/>
+
+  <!-- Left: ANSWER badge + contract decision -->
+  <rect x="34" y="32" width="152" height="40" rx="7" fill="#22c55e"/>
+  <text x="110" y="48" text-anchor="middle" fill="#fff" font-size="11" font-weight="800" letter-spacing="1">ANSWER_WITH</text>
+  <text x="110" y="64" text-anchor="middle" fill="#fff" font-size="11" font-weight="800" letter-spacing="1">CITATION</text>
+
+  <text x="34" y="98" fill="#86efac" font-size="10" font-weight="700" letter-spacing="1">CONTRACT</text>
+  <text x="34" y="116" fill="#fff" font-size="22" font-weight="800">VERIFIED</text>
+  <text x="34" y="141" fill="#86efac" font-size="10">NLI confidence: <tspan fill="#fff" font-weight="700">0.91</tspan>  (threshold: 0.85)</text>
+
+  <!-- Vertical divider left -->
+  <line x1="200" y1="28" x2="200" y2="143" stroke="#16a34a" stroke-width="1"/>
+
+  <!-- Center: Query + agent path -->
+  <text x="700" y="52" text-anchor="middle" fill="#f1f5f9" font-size="20" font-weight="700">How do I connect a custom domain to my Wix site?</text>
+  <text x="700" y="74" text-anchor="middle" fill="#86efac" font-size="11.5">planner_node  →  RetrievalAgent ×3  →  aggregate_node  →  VerifierAgent  →  SynthesisAgent</text>
+
+  <!-- Breadcrumb pills -->
+  <rect x="342" y="84" width="76" height="22" rx="11" fill="#052e16" stroke="#16a34a" stroke-width="1.2"/>
+  <text x="380" y="99" text-anchor="middle" fill="#86efac" font-size="9.5" font-weight="600">3 sub-queries</text>
+
+  <rect x="428" y="84" width="90" height="22" rx="11" fill="#052e16" stroke="#16a34a" stroke-width="1.2"/>
+  <text x="473" y="99" text-anchor="middle" fill="#86efac" font-size="9.5" font-weight="600">10 chunks retrieved</text>
+
+  <rect x="528" y="84" width="90" height="22" rx="11" fill="#052e16" stroke="#16a34a" stroke-width="1.2"/>
+  <text x="573" y="99" text-anchor="middle" fill="#86efac" font-size="9.5" font-weight="600">2 chunks verified</text>
+
+  <rect x="628" y="84" width="76" height="22" rx="11" fill="#052e16" stroke="#16a34a" stroke-width="1.2"/>
+  <text x="666" y="99" text-anchor="middle" fill="#86efac" font-size="9.5" font-weight="600">1 reflection</text>
+
+  <rect x="714" y="84" width="86" height="22" rx="11" fill="#052e16" stroke="#16a34a" stroke-width="1.2"/>
+  <text x="757" y="99" text-anchor="middle" fill="#86efac" font-size="9.5" font-weight="600">reflector: PASS</text>
+
+  <text x="700" y="133" text-anchor="middle" fill="#86efac" font-size="10">Session: demo-001  ·  Corpus: WixQA 6,221 articles  ·  Total latency: <tspan fill="#fff" font-weight="700">0.213s</tspan></text>
+
+  <!-- Vertical divider right -->
+  <line x1="1198" y1="28" x2="1198" y2="143" stroke="#16a34a" stroke-width="1"/>
+
+  <!-- Right: overall stats -->
+  <text x="1248" y="58" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">ROUTE</text>
+  <text x="1248" y="82" text-anchor="middle" fill="#22c55e" font-size="18" font-weight="800">ANSWER</text>
+  <text x="1248" y="106" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">RRF k=60</text>
+  <text x="1248" y="124" text-anchor="middle" fill="#86efac" font-size="10">BM25 + dense</text>
+  <text x="1248" y="140" text-anchor="middle" fill="#64748b" font-size="9">Groq llama-3.3-70b</text>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- LEFT PANEL: VERIFIED CHUNKS  x=16..636  y=162..520 -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <rect x="16" y="162" width="620" height="360" rx="10" fill="#0f172a" stroke="#1e293b" stroke-width="1" filter="url(#shadow)"/>
+  <text x="36" y="186" fill="#64748b" font-size="10" font-weight="700" letter-spacing="1">VERIFIED CHUNKS  ·  NLI ENTAILMENT ≥ 0.85</text>
+  <line x1="26" y1="194" x2="626" y2="194" stroke="#1e293b" stroke-width="1"/>
+
+  <!-- Chunk 1 -->
+  <rect x="26" y="202" width="600" height="140" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="1.2"/>
+  <rect x="26" y="202" width="4" height="140" rx="2" fill="#22c55e"/>
+
+  <text x="44" y="222" fill="#86efac" font-size="10" font-weight="700">[Source 1]</text>
+  <text x="110" y="222" fill="#475569" font-size="10">article_id: wix-domains-connect-7234</text>
+  <rect x="490" y="210" width="80" height="18" rx="9" fill="#052e16" stroke="#16a34a" stroke-width="1"/>
+  <text x="530" y="222" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">NLI: 0.91 ✓</text>
+  <rect x="578" y="210" width="42" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="599" y="222" text-anchor="middle" fill="#94a3b8" font-size="9">rrf: 0.89</text>
+
+  <line x1="36" y1="230" x2="616" y2="230" stroke="#334155" stroke-width="0.7"/>
+
+  <text x="44" y="248" fill="#f1f5f9" font-size="10.5">To connect a domain you already own, go to your Wix Dashboard and click</text>
+  <text x="44" y="264" fill="#f1f5f9" font-size="10.5">"Domains." Select "Connect a domain I already own" and enter your domain</text>
+  <text x="44" y="280" fill="#f1f5f9" font-size="10.5">name. Wix will guide you through updating your DNS records at your domain</text>
+  <text x="44" y="296" fill="#f1f5f9" font-size="10.5">registrar. Point your A record to 23.236.62.147 and your CNAME to</text>
+  <text x="44" y="312" fill="#f1f5f9" font-size="10.5">www.wixdns.net. Changes may take up to 48 hours to propagate.</text>
+
+  <text x="44" y="332" fill="#475569" font-size="9">BM25 rank: 1  ·  dense rank: 2  ·  RRF score: 0.893  ·  ENTAILS (conf 0.91) → SUPPORTS</text>
+
+  <!-- Chunk 2 -->
+  <rect x="26" y="354" width="600" height="120" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="1.2"/>
+  <rect x="26" y="354" width="4" height="120" rx="2" fill="#22c55e"/>
+
+  <text x="44" y="374" fill="#86efac" font-size="10" font-weight="700">[Source 2]</text>
+  <text x="110" y="374" fill="#475569" font-size="10">article_id: wix-domains-dns-3891</text>
+  <rect x="490" y="362" width="80" height="18" rx="9" fill="#052e16" stroke="#16a34a" stroke-width="1"/>
+  <text x="530" y="374" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">NLI: 0.87 ✓</text>
+  <rect x="578" y="362" width="42" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="599" y="374" text-anchor="middle" fill="#94a3b8" font-size="9">rrf: 0.76</text>
+
+  <line x1="36" y1="382" x2="616" y2="382" stroke="#334155" stroke-width="0.7"/>
+
+  <text x="44" y="400" fill="#f1f5f9" font-size="10.5">DNS propagation for a newly connected domain typically takes 24–48 hours.</text>
+  <text x="44" y="416" fill="#f1f5f9" font-size="10.5">During this period your site may be temporarily unreachable. You can check</text>
+  <text x="44" y="432" fill="#f1f5f9" font-size="10.5">propagation status using tools like whatsmydns.net.</text>
+
+  <text x="44" y="460" fill="#475569" font-size="9">BM25 rank: 3  ·  dense rank: 1  ·  RRF score: 0.764  ·  ENTAILS (conf 0.87) → SUPPORTS</text>
+
+  <!-- Unverified note -->
+  <text x="326" y="496" text-anchor="middle" fill="#475569" font-size="9.5">8 additional retrieved chunks failed NLI threshold (conf &lt; 0.85) — excluded from answer</text>
+  <text x="326" y="511" text-anchor="middle" fill="#475569" font-size="9">NEUTRAL or CONTRADICTS verdict → not cited</text>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- RIGHT PANEL: GENERATED ANSWER  x=648..1284  y=162..520 -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <rect x="648" y="162" width="636" height="360" rx="10" fill="#0f172a" stroke="#1e293b" stroke-width="1" filter="url(#shadow)"/>
+  <text x="668" y="186" fill="#64748b" font-size="10" font-weight="700" letter-spacing="1">GROUNDED ANSWER  ·  SYNTHESIS + REFLECTION PASS</text>
+  <line x1="658" y1="194" x2="1274" y2="194" stroke="#1e293b" stroke-width="1"/>
+
+  <!-- Answer text -->
+  <text x="668" y="222" fill="#f1f5f9" font-size="11">To connect a custom domain to your Wix site, follow these steps</text>
+  <text x="668" y="239" fill="#f1f5f9" font-size="11">[<tspan fill="#22c55e" font-weight="700">Source 1</tspan>]:</text>
+
+  <text x="668" y="264" fill="#94a3b8" font-size="10.5">1.  Go to your Wix Dashboard and navigate to the</text>
+  <text x="668" y="280" fill="#94a3b8" font-size="10.5">    <tspan fill="#f1f5f9">"Domains"</tspan> section.</text>
+  <text x="668" y="300" fill="#94a3b8" font-size="10.5">2.  Click <tspan fill="#f1f5f9">"Connect a domain I already own"</tspan> and</text>
+  <text x="668" y="316" fill="#94a3b8" font-size="10.5">    enter your domain name.</text>
+  <text x="668" y="336" fill="#94a3b8" font-size="10.5">3.  Update your DNS at your registrar:</text>
+  <text x="668" y="352" fill="#94a3b8" font-size="10.5">    • A record  →  <tspan fill="#06b6d4" font-family="'Courier New', monospace">23.236.62.147</tspan></text>
+  <text x="668" y="368" fill="#94a3b8" font-size="10.5">    • CNAME     →  <tspan fill="#06b6d4" font-family="'Courier New', monospace">www.wixdns.net</tspan></text>
+  <text x="668" y="392" fill="#f1f5f9" font-size="11">DNS propagation may take 24–48 hours [<tspan fill="#22c55e" font-weight="700">Source 2</tspan>]. You can</text>
+  <text x="668" y="408" fill="#f1f5f9" font-size="11">monitor propagation status at <tspan fill="#06b6d4">whatsmydns.net</tspan>.</text>
+
+  <!-- Reflection block -->
+  <rect x="658" y="428" width="616" height="68" rx="7" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="678" y="447" fill="#64748b" font-size="9" font-weight="700" letter-spacing="1">REFLECTOR VERDICT</text>
+  <rect x="664" y="454" width="54" height="18" rx="9" fill="#052e16" stroke="#16a34a" stroke-width="1"/>
+  <text x="691" y="466" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">PASS ✓</text>
+  <text x="726" y="466" fill="#94a3b8" font-size="10">Answer is grounded, specific, and directly answers the query.</text>
+  <text x="678" y="486" fill="#475569" font-size="9.5">Citations map to verified chunks. No information beyond source passages. Retry count: 0.</text>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- STATS BAR  y=528..590 -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <rect x="16" y="528" width="1268" height="56" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+
+  <text x="85" y="548" text-anchor="middle" fill="#64748b" font-size="9" font-weight="600">ANSWER RATE</text>
+  <text x="85" y="568" text-anchor="middle" fill="#22c55e" font-size="16" font-weight="800">56.0%</text>
+  <line x1="158" y1="534" x2="158" y2="578" stroke="#334155" stroke-width="0.8"/>
+
+  <text x="228" y="548" text-anchor="middle" fill="#64748b" font-size="9" font-weight="600">ABSTAIN RATE</text>
+  <text x="228" y="568" text-anchor="middle" fill="#f59e0b" font-size="16" font-weight="800">44.0%</text>
+  <line x1="298" y1="534" x2="298" y2="578" stroke="#334155" stroke-width="0.8"/>
+
+  <text x="382" y="548" text-anchor="middle" fill="#64748b" font-size="9" font-weight="600">NLI PRECISION</text>
+  <text x="382" y="568" text-anchor="middle" fill="#8b5cf6" font-size="16" font-weight="800">75.9%</text>
+  <line x1="456" y1="534" x2="456" y2="578" stroke="#334155" stroke-width="0.8"/>
+
+  <text x="530" y="548" text-anchor="middle" fill="#64748b" font-size="9" font-weight="600">ERROR RATE</text>
+  <text x="530" y="568" text-anchor="middle" fill="#f1f5f9" font-size="16" font-weight="800">0.0%</text>
+  <line x1="604" y1="534" x2="604" y2="578" stroke="#334155" stroke-width="0.8"/>
+
+  <text x="680" y="548" text-anchor="middle" fill="#64748b" font-size="9" font-weight="600">MEAN LATENCY</text>
+  <text x="680" y="568" text-anchor="middle" fill="#06b6d4" font-size="16" font-weight="800">218ms</text>
+  <line x1="754" y1="534" x2="754" y2="578" stroke="#334155" stroke-width="0.8"/>
+
+  <text x="830" y="548" text-anchor="middle" fill="#64748b" font-size="9" font-weight="600">P95 LATENCY</text>
+  <text x="830" y="568" text-anchor="middle" fill="#06b6d4" font-size="16" font-weight="800">247ms</text>
+  <line x1="904" y1="534" x2="904" y2="578" stroke="#334155" stroke-width="0.8"/>
+
+  <text x="988" y="548" text-anchor="middle" fill="#64748b" font-size="9" font-weight="600">EVAL QUERIES</text>
+  <text x="988" y="568" text-anchor="middle" fill="#f1f5f9" font-size="16" font-weight="800">200</text>
+  <line x1="1062" y1="534" x2="1062" y2="578" stroke="#334155" stroke-width="0.8"/>
+
+  <text x="1180" y="548" text-anchor="middle" fill="#64748b" font-size="9" font-weight="600">CORPUS</text>
+  <text x="1180" y="568" text-anchor="middle" fill="#f1f5f9" font-size="14" font-weight="700">WixQA · 6,221 articles</text>
+
+  <!-- bottom label -->
+  <text x="650" y="614" text-anchor="middle" fill="#334155" font-size="9">PulseAgent sample output — query routed ANSWER_WITH_CITATION · 2 NLI-verified chunks · reflector PASS · 0.213s total</text>
+</svg>
