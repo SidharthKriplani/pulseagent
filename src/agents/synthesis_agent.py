@@ -19,6 +19,10 @@ PA_ROOT = Path(__file__).parent.parent.parent
 if str(PA_ROOT) not in sys.path:
     sys.path.insert(0, str(PA_ROOT))
 
+import logging
+from tenacity import (retry, stop_after_attempt, wait_exponential,
+                      retry_if_exception_type, before_sleep_log)
+
 from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
@@ -26,12 +30,25 @@ from src.agents.state import SynthesisState
 from config import (LLM_BASE_URL, LLM_API_KEY, LLM_MODEL,
                     MAX_RETRIES, TOP_K_VERIFY)
 
+logger = logging.getLogger("pulseagent.synthesis")
+
 
 def _get_llm():
     return ChatOpenAI(
         base_url=LLM_BASE_URL, api_key=LLM_API_KEY,
         model=LLM_MODEL, temperature=0.2,
     )
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type(Exception),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+def _call_llm_with_retry(llm, messages):
+    return llm.invoke(messages)
 
 
 def generator_node(state: SynthesisState) -> dict:
@@ -51,7 +68,7 @@ def generator_node(state: SynthesisState) -> dict:
         for i, c in enumerate(chunks)
     )
 
-    response = _get_llm().invoke([HumanMessage(content=
+    response = _call_llm_with_retry(_get_llm(), [HumanMessage(content=
         f"""You are a precise knowledge assistant for Wix help articles.
 Answer ONLY using the provided sources. If insufficient, say so.
 
@@ -89,7 +106,7 @@ def reflector_node(state: SynthesisState) -> dict:
             "route":             "ANSWER",
         }
 
-    text = _get_llm().invoke([HumanMessage(content=
+    text = _call_llm_with_retry(_get_llm(), [HumanMessage(content=
         f"""Review this answer. Is it grounded in sources, specific, and answers the query?
 QUERY: {state['query']}
 ANSWER: {state['draft_answer']}

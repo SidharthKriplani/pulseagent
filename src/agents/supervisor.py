@@ -21,6 +21,11 @@ PA_ROOT = Path(__file__).parent.parent.parent
 if str(PA_ROOT) not in sys.path:
     sys.path.insert(0, str(PA_ROOT))
 
+import json, threading
+from tenacity import (retry, stop_after_attempt, wait_exponential,
+                      retry_if_exception_type, before_sleep_log)
+import logging
+
 from langgraph.graph import StateGraph, END
 from langgraph.types import Command, Send
 from langchain_openai import ChatOpenAI
@@ -32,12 +37,28 @@ from src.agents.verifier_agent import build_verifier_agent
 from src.agents.synthesis_agent import build_synthesis_agent
 from config import LLM_BASE_URL, LLM_API_KEY, LLM_MODEL, TOP_K_RETRIEVE
 
+logger = logging.getLogger("pulseagent.supervisor")
 
-def _get_llm():
-    return ChatOpenAI(
+
+def _get_llm(json_mode: bool = False):
+    llm = ChatOpenAI(
         base_url=LLM_BASE_URL, api_key=LLM_API_KEY,
         model=LLM_MODEL, temperature=0.2,
     )
+    if json_mode:
+        llm = llm.bind(response_format={"type": "json_object"})
+    return llm
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type(Exception),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+def _call_llm_with_retry(llm, messages):
+    return llm.invoke(messages)
 
 
 # ── Node 1: Planner + fan-out dispatcher ──────────────────────────────────────
@@ -46,33 +67,32 @@ def planner_node(state: SupervisorState) -> Command:
     """
     Decompose query into sub-queries, then fan out to RetrievalAgent
     instances in parallel using LangGraph's Send() API.
-    Returns Command to update state AND route to multiple nodes.
+    Uses JSON mode for structured output — no fragile string parsing.
+    Retries up to 3x with exponential backoff on LLM errors.
     """
-    llm = _get_llm()
-    response = llm.invoke([HumanMessage(content=
-        f"""You are a planning agent. Given this user query, output:
-1. A brief search intent (1 sentence)
-2. Up to 3 focused sub-queries that together cover the full information need
+    llm = _get_llm(json_mode=True)
+    response = _call_llm_with_retry(llm, [HumanMessage(content=
+        f"""You are a planning agent. Given this user query, return a JSON object with:
+- "intent": string (1 sentence describing the search intent)
+- "sub_queries": array of up to 3 focused sub-queries that together cover the full information need
 
 Query: {state['query']}
 
-Respond in this exact format:
-INTENT: <intent>
-SUB_QUERIES:
-- <sub-query 1>
-- <sub-query 2>
-- <sub-query 3>"""
+Return only valid JSON, no other text."""
     )])
 
     intent, sub_queries = "", [state["query"]]
-    for line in response.content.split("\n"):
-        if line.startswith("INTENT:"):
-            intent = line.replace("INTENT:", "").strip()
-        elif line.strip().startswith("- "):
-            sub_queries.append(line.strip()[2:])
+    try:
+        data = json.loads(response.content)
+        intent = data.get("intent", "")
+        parsed = data.get("sub_queries", [])
+        if isinstance(parsed, list) and parsed:
+            sub_queries = [q for q in parsed if isinstance(q, str)][:3]
+    except (json.JSONDecodeError, AttributeError):
+        logger.warning("[supervisor.planner] JSON parse failed — using original query")
 
-    sub_queries = sub_queries[:3] if sub_queries else [state["query"]]
-    print(f"[supervisor.planner] intent='{intent}' | {len(sub_queries)} sub-queries")
+    sub_queries = sub_queries or [state["query"]]
+    logger.info(f"[supervisor.planner] intent='{intent}' | {len(sub_queries)} sub-queries")
 
     # Fan out: each sub-query goes to a separate RetrievalAgent instance
     return Command(
@@ -212,12 +232,15 @@ def build_supervisor():
 
 
 _supervisor = None
+_supervisor_lock = threading.Lock()
 
 def run_supervisor(query: str) -> dict:
     """Run the multi-agent supervisor and return structured result."""
     global _supervisor
     if _supervisor is None:
-        _supervisor = build_supervisor()
+        with _supervisor_lock:
+            if _supervisor is None:
+                _supervisor = build_supervisor()
 
     init = {
         "query":                query,
