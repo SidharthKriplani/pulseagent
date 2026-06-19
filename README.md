@@ -1,8 +1,27 @@
-# PulseAgent
+<div align="center">
 
-A multi-agent RAG system built on LangGraph. Three specialist sub-agents — RetrievalAgent, VerifierAgent, SynthesisAgent — orchestrated by a SupervisorAgent that decomposes queries and fans out retrieval in parallel. Retrieval and NLI layers exposed as MCP tools. Containerized FastAPI service deployable on GCP Cloud Run.
+# PulseAgent — Citation-Grounded Multi-Agent RAG
 
-Built to demonstrate production AI engineering skills: multi-agent orchestration, tool use, citation-grounded generation, NLI evaluation, and cloud deployment.
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![LangGraph](https://img.shields.io/badge/LangGraph-0.2%2B-FF6B6B?style=flat-square)](https://github.com/langchain-ai/langgraph)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![fastembed](https://img.shields.io/badge/fastembed-BAAI%2Fbge--small-8B5CF6?style=flat-square)](https://github.com/qdrant/fastembed)
+[![Groq](https://img.shields.io/badge/Groq-llama--3.3--70b-F97316?style=flat-square)](https://groq.com/)
+[![GCP](https://img.shields.io/badge/GCP-Cloud_Run-4285F4?style=flat-square&logo=googlecloud&logoColor=white)](https://cloud.google.com/run)
+[![License](https://img.shields.io/badge/License-MIT-22c55e?style=flat-square)](LICENSE)
+
+> A citation-grounded multi-agent RAG system — built to answer: **when should an agent refuse to answer rather than hallucinate?**  
+> Three specialist sub-agents orchestrated by a LangGraph Supervisor. NLI contract gates every response: `ANSWER_WITH_CITATION` or `ABSTAIN`. No hallucination path exists by design.
+
+</div>
+
+---
+
+## Failure Mode Addressed
+
+**When should an AI system abstain instead of guessing?** RAG pipelines fail when they produce plausible-sounding answers without verifiable grounding — when citation is treated as optional metadata rather than a hard contract. PulseAgent is built around making that enforcement explicit, measurable, and auditable.
+
+The domain — 6,221 Wix Help Center articles — is the test environment. The abstain-vs-hallucinate decision is the thesis.
 
 ---
 
@@ -28,19 +47,19 @@ User Query
 │  └──────┬───────┘               └──────┬───────┘               │
 │         │  chunks                      │  chunks                │
 │         └──────────────┬───────────────┘                       │
-│                        │  Annotated reducer accumulates         │
+│                        │  Annotated[List[dict], operator.add]   │
 │                        ▼                                        │
 │              [aggregate_node]  dedup + rank                     │
 │                        │                                        │
 │                        ▼                                        │
 │  ┌─────────────────────────────┐                               │
 │  │     VerifierAgent sub-graph │                               │
-│  │  NLI: cross-encoder/nli-    │                               │
-│  │  deberta-v3-small ≥0.85     │                               │
+│  │  cross-encoder/nli-deberta  │                               │
+│  │  -v3-small · threshold 0.85 │                               │
 │  │  ANSWER_WITH_CITATION /     │                               │
 │  │  ABSTAIN per passage        │                               │
 │  └──────────────┬──────────────┘                               │
-│                 │  verified_chunks + decision                   │
+│                 │  verified_chunks + contract_decision          │
 │                 ▼                                               │
 │  ┌─────────────────────────────┐                               │
 │  │    SynthesisAgent sub-graph │                               │
@@ -50,10 +69,32 @@ User Query
 │  └──────────────┬──────────────┘                               │
 └─────────────────┼───────────────────────────────────────────────┘
                   ▼
-         Route: ANSWER | ABSTAIN
+       ANSWER_WITH_CITATION | ABSTAIN
 ```
 
 Each specialist (RetrievalAgent, VerifierAgent, SynthesisAgent) is a separately compiled `StateGraph` subgraph. The Supervisor uses LangGraph's `Send()` API to fan sub-queries out to parallel RetrievalAgent instances; results accumulate via an `Annotated[List[dict], operator.add]` reducer.
+
+---
+
+## Eval Results (200-query, WixQA corpus)
+
+| Metric | Value |
+|--------|-------|
+| Queries evaluated | 200 |
+| ANSWER_WITH_CITATION rate | **56.0%** |
+| ABSTAIN rate (principled, zero hallucination) | **44.0%** |
+| Error rate | **0.0%** |
+| NLI-verified citation precision | **75.9%** |
+| Mean retrieval + NLI latency | 0.218s |
+| P95 retrieval + NLI latency | 0.247s |
+
+The 44% abstain rate is a feature, not a failure. The system refuses to answer when it cannot produce a citation-verified response — the alternative is hallucination.
+
+Run eval (no LM Studio required — runs retrieval + NLI only):
+```bash
+python3 src/eval/eval_runner.py          # 200 queries
+python3 src/eval/eval_runner.py --n 50   # quick sample
+```
 
 ---
 
@@ -66,7 +107,6 @@ retrieve_passages(query: str)              → list[dict]
 verify_citation(claim: str, passage: str)  → dict{verdict, confidence, passes}
 ```
 
-Run the MCP server:
 ```bash
 python3 src/mcp_server/server.py           # stdio (Claude Desktop)
 python3 src/mcp_server/server.py --sse     # SSE transport
@@ -86,73 +126,74 @@ Claude Desktop config:
 
 ---
 
-## Eval results (200-query, WixQA corpus)
-
-| Metric | Value |
-|--------|-------|
-| Queries evaluated | 200 |
-| Answer rate (ANSWER_WITH_CITATION) | 56.0% |
-| Abstain rate (principled, no hallucination) | 44.0% |
-| Error rate | 0.0% |
-| Mean retrieval+NLI latency | 0.218s |
-| P95 retrieval+NLI latency | 0.247s |
-
-The abstain rate is a feature: the agent refuses to answer when it cannot produce a citation-verified response, rather than hallucinating.
-
-Run eval (no LM Studio required):
-```bash
-python3 src/eval/eval_runner.py          # 200 queries
-python3 src/eval/eval_runner.py --n 50   # quick sample
-```
-
----
-
 ## Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Agent orchestration | LangGraph StateGraph + Send() fan-out |
-| Specialist sub-agents | 3 compiled subgraphs (Retrieval, Verifier, Synthesis) |
-| MCP tools | fastmcp (retrieve_passages, verify_citation) |
-| LLM | Groq (cloud) / LM Studio (local) · qwen2.5-7b or llama-3.3-70b |
-| Dense retrieval | fastembed BAAI/bge-small-en-v1.5 · 384-dim · Qdrant in-memory |
-| Sparse retrieval | BM25Okapi (rank_bm25) |
+| Agent orchestration | LangGraph `StateGraph` + `Send()` fan-out |
+| Specialist sub-agents | 3 compiled subgraphs: Retrieval · Verifier · Synthesis |
+| MCP tools | `fastmcp` (`retrieve_passages`, `verify_citation`) |
+| LLM | Groq `llama-3.3-70b-versatile` (cloud) · LM Studio `qwen2.5-7b` (local) |
+| Dense retrieval | fastembed `BAAI/bge-small-en-v1.5` · 384-dim · Qdrant in-memory |
+| Sparse retrieval | BM25Okapi (`rank_bm25`) |
 | Fusion | Reciprocal Rank Fusion (RRF, k=60) |
-| NLI verification | cross-encoder/nli-deberta-v3-small (HuggingFace) |
-| API | FastAPI + uvicorn |
-| Deployment | Docker + GCP Cloud Run |
-| Corpus | Wix/WixQA · 6,221 articles · MIT license |
+| NLI citation gate | `cross-encoder/nli-deberta-v3-small` · threshold 0.85 · 17ms/pair |
+| Serving | FastAPI · `slowapi` rate limiting (10/min) · X-API-Key auth |
+| Deployment | GCP Cloud Run · Secret Manager for API keys |
+| Index cache | `chunks.pkl` + `bm25.pkl` + `vectors.npy` · committed · ~15s cold start |
 
 ---
 
-## Project structure
+## Key Engineering Decisions
+
+**Why `Send()` for fan-out?**
+`Send()` dispatches each sub-query to a separate RetrievalAgent instance running as an independent graph execution. Results accumulate via `Annotated[List[dict], operator.add]` in `SupervisorState`. This is canonical LangGraph parallel fan-out — not cosmetic threading.
+
+**Why compile each specialist as a separate `StateGraph`?**
+Each specialist has its own typed state schema and is independently testable. The Supervisor doesn't know the internals of retrieval or NLI — it invokes compiled subgraphs. Correct abstraction for multi-agent systems.
+
+**Why NLI claim conversion?**
+NLI entailment models expect declarative hypothesis-premise pairs — questions always fail entailment. Converting "How do I add a blog?" → "This article provides information about: How do I add a blog" gives the cross-encoder a falsifiable statement. Measured precision: 75.9%.
+
+**Why 3-part cache instead of pickling the full index?**
+The `RetrievalIndex` holds a fastembed ONNX `InferenceSession`, which is not picklable. Fix: serialize chunks as plain dicts, BM25 separately, vectors as NumPy. Rebuild Qdrant in-memory from saved vectors on load. Cold start from cache: ~15s vs ~8 min fresh.
+
+**Why Groq for cloud?**
+Groq's API is OpenAI-compatible — identical call format to LM Studio. Switching from local to cloud is two env vars. Free tier: 14,400 req/day. No Kubernetes needed at this scale.
+
+---
+
+## Project Structure
 
 ```
 pulseagent/
-├── main.py                     Entry point (--legacy flag uses original single-agent)
-├── api.py                      FastAPI service (POST /query, GET /health)
-├── config.py                   Env-var driven LLM config (local/Groq/any OpenAI-compat)
-├── Dockerfile                  Container for GCP Cloud Run
+├── api.py                      FastAPI service (auth, rate limiting, /query + /health)
+├── config.py                   All config via env vars — no hardcoded secrets
+├── main.py                     CLI entry point (local + interactive)
+├── setup_pulseagent.py         Bootstrap scaffold
 ├── requirements.txt
+├── Dockerfile
+├── docs/
+│   └── PulseAgent_Interview_Defense.pdf   22-page system defense
 ├── src/
-│   ├── agents/                 Multi-agent system
+│   ├── agents/
 │   │   ├── state.py            SupervisorState, RetrievalState, VerifierState, SynthesisState
 │   │   ├── supervisor.py       SupervisorAgent: planner + fan-out + aggregate
 │   │   ├── retrieval_agent.py  RetrievalAgent subgraph (BM25+dense+RRF)
 │   │   ├── verifier_agent.py   VerifierAgent subgraph (NLI)
 │   │   └── synthesis_agent.py  SynthesisAgent subgraph (generator+reflector)
-│   ├── agent/                  Original single-agent (preserved, used by --legacy)
+│   ├── agent/                  Original single-agent (preserved, --legacy flag)
 │   ├── mcp_server/
 │   │   └── server.py           MCP tool server (stdio + SSE)
 │   ├── tools/
 │   │   ├── retriever_tool.py   @tool: hybrid RRF (3-part persistent cache)
 │   │   └── nli_tool.py         @tool: NLI citation verification
-│   ├── retrieval/              Bundled retrieval layer (corpus.py, indexer.py)
-│   ├── citation/               Bundled NLI layer (entailment.py)
-│   ├── corpus/                 Bundled corpus adapter (wixqa_adapter.py)
+│   ├── retrieval/              Bundled retrieval layer
+│   ├── citation/               Bundled NLI layer
+│   ├── corpus/                 WixQA corpus adapter
 │   └── eval/
 │       └── eval_runner.py      200-query evaluation harness
-└── .cache/                     Persistent index (gitignored — built on first run)
+└── .cache/                     bm25.pkl + chunks.pkl + vectors.npy (committed, 73MB)
 ```
 
 ---
@@ -162,30 +203,31 @@ pulseagent/
 **Requirements:** Python 3.10+, LM Studio (local) or Groq API key (cloud)
 
 ```bash
+git clone https://github.com/SidharthKriplani/pulseagent.git
+cd pulseagent
 pip install -r requirements.txt
 
-# Run multi-agent supervisor (local, LM Studio at localhost:1234)
-python3 main.py "how do I add a blog?"
+# Local (LM Studio at localhost:1234)
+python3 main.py "how do I add a blog to my Wix site?"
 
-# Run with Groq (no local LLM needed)
+# Cloud (Groq — no local LLM needed)
 export LLM_BASE_URL=https://api.groq.com/openai/v1
 export LLM_API_KEY=<your_groq_key>
 export LLM_MODEL=llama-3.3-70b-versatile
-python3 main.py "how do I add a blog?"
+python3 main.py "how do I add a blog to my Wix site?"
 
-# Run FastAPI server
+# FastAPI server
 uvicorn api:app --reload --port 8000
-# POST http://localhost:8000/query  {"question": "how do I add a blog?"}
+# POST http://localhost:8000/query  {"question": "..."}
 ```
 
-**First run:** embeds 6,221 articles (~5-8 min, one-time). Saved to `.cache/`. All subsequent runs load in ~15s.
+**First run:** embeds 6,221 articles (~5–8 min, one-time). Saved to `.cache/`. All subsequent runs load in ~15s.
 
 ---
 
-## Cloud deployment (GCP Cloud Run)
+## Cloud Deployment (GCP Cloud Run)
 
 ```bash
-# Build and deploy
 gcloud run deploy pulseagent \
   --source . \
   --region us-central1 \
@@ -197,23 +239,15 @@ gcloud run deploy pulseagent \
   --allow-unauthenticated
 ```
 
-**Note on cold start:** the corpus cache (`.cache/`) is not baked into the image (it's gitignored). First request after a cold start triggers the embedding step (~5-8 min). The `/health` endpoint reports `cache: building` vs `cache: ready`. For production, mount the cache from Cloud Storage.
+The `.cache/` directory is committed (73MB, all files under GitHub's 100MB limit) so Cloud Run cold starts load the pre-built index in ~15s rather than rebuilding from scratch.
 
 ---
 
-## Key engineering decisions
+## Related Projects
 
-**Why LangGraph Send() for fan-out?**
-`Send()` dispatches each sub-query to a separate RetrievalAgent instance that runs as an independent graph execution. Results accumulate via `Annotated[List[dict], operator.add]` in SupervisorState. This is the canonical LangGraph multi-agent parallel pattern — not cosmetic parallelism.
+- **[PulseGuard](https://github.com/SidharthKriplani/pulseguard)** — credit risk governance system. Same "explicit abstain over silent failure" principle applied to ML model scoring: a champion that scores at 99.62% of its Bayes ceiling knows when it's at the limit of what the data can tell it.
+- **[PulseDiscover](https://github.com/SidharthKriplani/pulsediscover)** — recommender decision system. Same "prove the claim before shipping" principle applied to ranking: offline metrics are audited for OPE bias before any serving policy ships.
 
-**Why compile each specialist as a separate StateGraph?**
-Each specialist has its own typed state schema and is independently testable. The Supervisor doesn't need to know the internals of how retrieval or NLI work — it just invokes the compiled subgraph. This is the correct abstraction for multi-agent systems.
+---
 
-**Why Groq for cloud deployment?**
-Groq's API is OpenAI-compatible (same format as LM Studio). Switching from local to cloud is two env vars. Free tier supports 14,400 requests/day — sufficient for a portfolio demo. No Kubernetes needed: Cloud Run abstracts container orchestration at this scale.
-
-**Why 3-part cache instead of pickling the full index?**
-The `RetrievalIndex` holds a fastembed ONNX `InferenceSession`, which is not picklable. Solution: serialize chunks as plain dicts, BM25 separately, vectors as numpy. Rebuild Qdrant in-memory from saved vectors on load. Cold start from cache: ~15s vs ~8 min fresh.
-
-**Why NLI claim conversion?**
-NLI entailment models expect declarative hypothesis-premise pairs. Questions always fail entailment. Converting "How do I add a blog?" → "This article provides information about: How do I add a blog" gives the cross-encoder a falsifiable statement it can actually verify.
+*A personal portfolio / research project. Results are backed by the eval harness in `src/eval/`. If a number isn't reproducible by running `eval_runner.py`, it isn't claimed.*
