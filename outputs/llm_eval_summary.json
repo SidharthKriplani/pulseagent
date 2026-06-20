@@ -1,0 +1,29 @@
+{
+  "eval_date": "2026-06-20T13:19:22.330957+00:00",
+  "n_queries": 37,
+  "nli_threshold": 0.85,
+  "top_k_verify": 3,
+  "metric": "token_f1 (bag-of-words F1 vs expert ground-truth answer)",
+  "backends": {
+    "qwen2.5-7b (LM Studio)": {
+      "n": 37,
+      "error_count": 0,
+      "mean_token_f1": 0.3878,
+      "p50_token_f1": 0.3616,
+      "mean_latency_s": 8.022,
+      "p50_latency_s": 7.371,
+      "p95_latency_s": 12.515,
+      "mean_answer_len_words": 70
+    },
+    "llama-3.3-70b (Groq)": {
+      "n": 37,
+      "error_count": 0,
+      "mean_token_f1": 0.3314,
+      "p50_token_f1": 0.325,
+      "mean_latency_s": 0.675,
+      "p50_latency_s": 0.648,
+      "p95_latency_s": 0.9,
+      "mean_answer_len_words": 42
+    }
+  }
+}
