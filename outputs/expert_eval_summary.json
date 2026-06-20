@@ -1,0 +1,54 @@
+{
+  "eval_date": "2026-06-20T12:52:55.698508+00:00",
+  "eval_set": "Wix/WixQA/wixqa_expertwritten",
+  "n_queries": 200,
+  "nli_threshold": 0.85,
+  "top_k_retrieve": 10,
+  "top_k_verify": 3,
+  "k_values": [
+    1,
+    3,
+    10
+  ],
+  "modes": {
+    "bm25_only": {
+      "n": 200,
+      "answer_rate": 0.155,
+      "mean_latency_s": 0.238,
+      "p50_latency_s": 0.18,
+      "p95_latency_s": 0.383,
+      "mean_precision_at_1": 0.28,
+      "mean_recall_at_1": 0.2375,
+      "mean_precision_at_3": 0.1633,
+      "mean_recall_at_3": 0.3983,
+      "mean_precision_at_10": 0.072,
+      "mean_recall_at_10": 0.5725
+    },
+    "dense_only": {
+      "n": 200,
+      "answer_rate": 0.2,
+      "mean_latency_s": 0.185,
+      "p50_latency_s": 0.168,
+      "p95_latency_s": 0.335,
+      "mean_precision_at_1": 0.35,
+      "mean_recall_at_1": 0.3092,
+      "mean_precision_at_3": 0.2066,
+      "mean_recall_at_3": 0.5167,
+      "mean_precision_at_10": 0.096,
+      "mean_recall_at_10": 0.7808
+    },
+    "hybrid_rrf": {
+      "n": 200,
+      "answer_rate": 0.185,
+      "mean_latency_s": 0.174,
+      "p50_latency_s": 0.154,
+      "p95_latency_s": 0.336,
+      "mean_precision_at_1": 0.405,
+      "mean_recall_at_1": 0.34,
+      "mean_precision_at_3": 0.2316,
+      "mean_recall_at_3": 0.565,
+      "mean_precision_at_10": 0.099,
+      "mean_recall_at_10": 0.7975
+    }
+  }
+}

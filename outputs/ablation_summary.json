@@ -1,0 +1,40 @@
+{
+  "eval_date": "2026-06-20T12:48:01.421172+00:00",
+  "n_queries": 50,
+  "seed": 42,
+  "nli_threshold": 0.85,
+  "top_k_retrieve": 10,
+  "top_k_verify": 3,
+  "modes": {
+    "bm25_only": {
+      "n": 50,
+      "answer_rate": 0.48,
+      "abstain_rate": 0.52,
+      "error_rate": 0.0,
+      "mean_citation_prec": 0.193,
+      "mean_latency_s": 0.384,
+      "p50_latency_s": 0.183,
+      "p95_latency_s": 0.307
+    },
+    "dense_only": {
+      "n": 50,
+      "answer_rate": 0.42,
+      "abstain_rate": 0.58,
+      "error_rate": 0.0,
+      "mean_citation_prec": 0.18,
+      "mean_latency_s": 0.134,
+      "p50_latency_s": 0.123,
+      "p95_latency_s": 0.205
+    },
+    "hybrid_rrf": {
+      "n": 50,
+      "answer_rate": 0.44,
+      "abstain_rate": 0.56,
+      "error_rate": 0.0,
+      "mean_citation_prec": 0.187,
+      "mean_latency_s": 0.118,
+      "p50_latency_s": 0.114,
+      "p95_latency_s": 0.173
+    }
+  }
+}
